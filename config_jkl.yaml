@@ -1,0 +1,536 @@
+backend:
+  analytics: # Contents will be available in UI
+    google_analytics_id: 
+    matomo_analytics_id: 
+
+elasticsearch:
+  hosts:
+    # - "localhost:9200"
+    - "elasticsearch:9200"
+  index_prefix: "220214_jkl"
+  index_reader_rolename: "jkl_index_reader"
+  index_writer_rolename: "jkl_index_writer"
+  languages:
+    - fi
+    - en
+  analyzers:
+    default:
+      tokenizer:
+        "standard"
+      token_filters:
+        - "lowercase"
+    fi:
+      stop_stemmer:
+        tokenizer:
+          "standard"
+        token_filters:
+          - "lowercase"
+          - type: "stop"
+            stopwords: "_finnish_"
+          - type: "stemmer_override"
+            rules_path: "nlp_dictionary_fi.txt"
+          - type: "stemmer"
+            language: "finnish"
+      asiasanat:
+        char_filters:
+          - type: "pattern_replace"
+            pattern: "(ASIASANAT:).."
+            replacement: ""
+        tokenizer:
+          "standard"
+        token_filters:
+          - "lowercase"
+    en:
+      stop_stemmer:
+        tokenizer:
+          "standard"
+        token_filters:
+          - "lowercase"
+          - type: "stop"
+            stopwords: "_english_"
+          - type: "stemmer"
+            language: "english"
+
+  search_settings:
+    fuzziness: 0
+    field_boosts:
+    # Boosts the score of the documents matching to the given field and value by multiplying the original score by the boost value.
+    #   some_descriptive_name:
+    #     field: "field_name" [str]
+    #     values: "the_value_to_be_boosted" [str|list(str)]
+    #     boost: 42.0 [integer|float]
+      uutiset:
+        field: "content_type"
+        values: "uutinen"
+        boost: 0.8
+
+  suggest_settings: # General settings for the suggest query made from the search backend. 
+    suggest1: # Multiple suggestion can be configured if needed - copy this block, rename it and settings
+      completion:
+        field: "suggest" # Field to search for suggestion in
+        skip_duplicates: true
+        fuzzy:
+          fuzziness: 0
+        size: 20 # Amount of suggestions to return
+
+SCRAPY_SETTINGS:
+  GENERAL:
+    DEPTH_LIMIT: 0
+    DOWNLOAD_DELAY: 0.1
+    DOWNLOAD_TIMEOUT: 180
+    LOG_ENABLED: true
+    LOG_FILE: null
+    # LOG_FILE: "220214_jkl.log"
+    LOG_FORMAT: '%(asctime)s [%(name)s] %(levelname)s: %(message)s'
+    LOG_LEVEL: 'INFO'
+    LOGSTATS_INTERVAL: 60
+    ROBOTSTXT_OBEY: false
+
+  SPIDERS:
+    JklSpider:
+      BOT_NAME: "atrsoft"
+      ALLOWED_DOMAINS:
+        - www.jyvaskyla.fi
+      START_URLS:
+        - "https://www.jyvaskyla.fi"
+      LINK_EXTRACTOR_RULES:
+        allow:
+        deny:
+          # Robots.txt
+          - "/core/"
+          - "/profiles/"
+          - "/README.txt"
+          - "/web.config"
+          - "/admin/"
+          - "/comment/reply/"
+          - "/filter/tips"
+          - "/node/add/"
+          - "/search/"
+          - "/user/register/"
+          - "/user/password/"
+          - "/user/login/"
+          - "/user/logout/"
+          - "/index.php/admin/"
+          - "/index.php/comment/reply/"
+          - "/index.php/filter/tips"
+          - "/index.php/node/add/"
+          - "/index.php/search/"
+          - "/index.php/user/password/"
+          - "/index.php/user/register/"
+          - "/index.php/user/login/"
+          - "/index.php/user/logout/"
+          # Additional
+          - "/term/"
+          - "/search"
+          - "/node/"
+
+      CUSTOM_SETTINGS:
+        CRAWL_LINKS_ONLY:
+          # The pages which have an url containing one of these paths are crawled and links are extracted without indexing the contents.
+          # Suitable especially for directory pages or link lists. Value can be empty or null.
+          # str | [str] | null
+          - "/search"
+
+        REPLACE_CHARACTERS:
+          # Characters to be replaced with another one within the scraped content. Values set as "key": "value" -pairs. Can be set as empty or null.
+          # "the_string_or_character_to_be_replaced": "the_string_to_replace_with_or_an_empty_string_if_removed"
+          "\xa0": " "
+
+        ITEM_PIPELINES:
+          generic.generic.pipelines.ElasticsearchPipeline: 500
+
+        SCRAPER_SETTINGS:
+          lang:
+            "html"
+
+          head:
+            content_to_scrape:
+              og:title:
+                element: "meta"
+                attribute: "og:title"
+                attribute-key: "property"
+                attribute-value: "content"
+                indexing:
+                  type: "text"
+                  analyzer:
+                    fi: "stop_stemmer"
+                    en: "stop_stemmer"
+                search:
+                  boost: 5
+                  highlight: true
+
+              dcterms.title:
+                element: "meta"
+                attribute: "dcterms.title"
+                attribute-key: "name"
+                attribute-value: "content"
+                indexing:
+                  type: "text"
+                  analyzer:
+                    fi: "stop_stemmer"
+                    en: "stop_stemmer"
+                search:
+                  highlight: true
+
+              dcterms.type:
+                element: "meta"
+                attribute: "dcterm.type"
+                attribute-key: "name"
+                attribute-value: "content"
+
+              og:description:
+                element: "meta"
+                attribute: "description"
+                attribute-key: "name"
+                attribute-value: "content"
+                indexing:
+                  type: "text"
+                  analyzer:
+                    fi: "stop_stemmer"
+                    en: "stop_stemmer"
+                search:
+                  null
+
+          body:
+            element: "div"
+            class: "main__wrapper"
+            id: null
+
+            exclude_rules:
+              valikko:
+                element: "aside"
+                class: "first-sidebar"
+                id: null
+
+            content_to_scrape:
+              header1:
+                element: "h1"
+                attributes:
+                  id: null
+                  class: null
+                indexing:
+                  type: "text"
+                  analyzer: 
+                    fi: "stop_stemmer"
+                    en: "stop_stemmer"
+                search:
+                  boost: 5
+                  highlight: true
+
+              header2:
+                element: "h2"
+                indexing:
+                  type: "text"
+                  analyzer: 
+                    fi: "stop_stemmer"
+                    en: "stop_stemmer"
+                search:
+                  boost: 4
+                  highlight: true
+
+              header3:
+                element: "h3"
+                indexing:
+                  type: "text"
+                  analyzer: 
+                    fi: "stop_stemmer"
+                    en: "stop_stemmer"
+                search:
+                  boost: 3
+                  highlight: true
+
+              sub_header:
+                element: "strong"
+                attributes":
+                  class: null
+                  id: null
+                indexing:
+                  type: "text"
+                  analyzer:
+                    fi: "stop_stemmer"
+                    en: "stop_stemmer"
+                search:
+                  boost: 2
+                  highlight: true
+
+              text: 
+                element: "p"
+                attributes:
+                  class: null
+                indexing:
+                  type: "text"
+                  analyzer: 
+                    fi: "stop_stemmer"
+                    en: "stop_stemmer"
+                search:
+                  highlight:
+                    no_match_size: 100
+              
+              infobox:
+                element: "div"
+                attributes:
+                  class: "infobox"
+                indexing:
+                  type: "text"
+                  analyzer:
+                    fi: "stop_stemmer"
+                    en: "stop_stemmer"
+                search:
+                  boost: 2
+                  highlight: true
+
+              asiasanat:
+                element: "div"
+                attributes:
+                  class: "keywords__item"
+                indexing:
+                  type: "text"
+                  analyzer: 
+                    fi: "asiasanat"
+                search:
+                  boost: 3
+                  highlight: false
+              
+              breadcrumb:
+                element: "ol"
+                attributes:
+                  class: "breadcrumb"
+                search:
+                  false
+
+        CONTENT_TYPES_AND_THEMES:
+          settings: 
+            parse_content_type_from: "url" # url / element (breadcrumb or other element inside body where it is!) / datalayer
+            parse_themes_from: "breadcrumb" # url / breadcrumb (breadcrumb or element where it is!) / null (if available in e.g. meta tag) / datalayer
+            default_content_type: "tietosivu" # if no match below, use this type
+            remove_last_part_from_url_path: true # if true, remove the last section from path which is usually the page itself when parsing theme from url or breadcrumb
+            remove_first_part_from_breadcrumb: true # if true, remove the first section from breadcrumb (e.g. "Etusivu") when parsing theme from url or breadcrumb
+            remove_last_part_from_breadcrumb: true # if true, remove the last section from breadcrumb which is usually the page itself when parsing theme from url or breadcrumb
+            display_fields:
+              title: 
+                default: "Title not found"
+                append_values: true
+                suggest: false
+                index_fields:
+                  - "og:title"
+                  - "dcterms.title"
+              text:
+                append_values: false
+                suggest: false
+                index_fields:
+                  - "full_content"
+                  - "og:description"
+              publish_date:
+                append_values: false
+                index_fields:
+              modify_date:
+                append_values: true
+                index_fields:
+              writer:
+                default:
+                suggest: false
+                index_fields:
+              location:
+                suggest: false
+                index_fields:
+              date: 
+                suggest: false
+                index_fields:
+              time:
+                index_fields:
+              url:
+                index_fields: 
+                  - "url"             
+              image_url:
+                index_fields:
+              keywords:
+                suggest: true
+                index_fields:
+                  - "asiasanat"
+              content_type: 
+                index_fields:
+                  - "content_type"
+              themes:             
+                suggest: false
+                index_fields:
+                  - "themes"
+          tietosivu:
+          uutinen: # The words below get this content type
+            - "uutinen"
+            - "uutiset"
+          blogi:
+            - "blogi"
+            - "blogit"
+          yhteystieto: # The words below get this content type
+            - "yhteystieto"
+            - "yhteystiedot"
+            - "henkilo"
+            - "toimipaikka"
+            - "toimipiste"
+          tapahtuma: # The words below get this content type
+            - "tapahtuma"
+            - "tapahtumat"
+          palvelu_tai_asiointikanava:
+            - "palvelu"
+            - "asiointikanava"
+            - "service"
+
+    # JklPersonSpider:
+    #   BOT_NAME: "atrsoft"
+    #   ALLOWED_DOMAINS:
+    #     - www.jyvaskyla.fi
+    #   START_URLS:
+    #     - "https://www.jyvaskyla.fi/search?f%5B1%5D=type%3Aperson"
+    #   LINK_EXTRACTOR_RULES:
+    #     allow:
+    #       - "/search"
+    #       - "/henkilo/"
+    #     deny:
+    #       - "keywords"
+    #       - "district"
+    #       - "target-audience"
+    #       - "municipality"
+    #       - "trust-unit"
+    #       - "trustee-role"
+    #       - "office"
+    #       - "political-party"
+    #       - "classification"
+    #       - "theme"
+    #       - "section"
+
+
+    #   CUSTOM_SETTINGS:
+    #     CRAWL_LINKS_ONLY:
+    #       # The pages which have an url containing one of these paths are crawled and links are extracted without indexing the contents.
+    #       # Suitable especially for directory pages or link lists. Value can be empty or null.
+    #       # str | [str] | null
+    #       - "/search"
+
+    #     REPLACE_CHARACTERS:
+    #       # Characters to be replaced with another one within the scraped content. Values set as "key": "value" -pairs. Can be set as empty or null.
+    #       # "the_string_or_character_to_be_replaced": "the_string_to_replace_with_or_an_empty_string_if_removed"
+    #       "\xa0": " "
+
+    #     ITEM_PIPELINES:
+    #       generic.generic.pipelines.ElasticsearchPipeline: 500
+
+    #     SCRAPER_SETTINGS:
+    #       lang:
+    #         "html"
+
+    #       head:
+    #         content_to_scrape:
+    #           person_full_name:
+    #             element: "meta"
+    #             attribute: "og:title"
+    #             attribute-key: "property"
+    #             attribute-value: "content"
+    #             search:
+    #               boost: 10
+    #               highlight: true
+
+    #       body:
+    #         element: "main"
+    #         class: "main-content"
+    #         id: null
+
+    #         exclude_rules:
+
+    #         content_to_scrape:
+    #           person_email:
+    #             element: "div"
+    #             attributes:
+    #               class: "field-emailtext"
+    #             search:
+    #               boost: 5
+    #               highlight: true
+
+    #           person_position:
+    #             element: "div"
+    #             attributes:
+    #               class: "field-employee-title"
+    #             search:
+    #               boost: 3
+    #               highlight: true
+
+    #           person_work_phone_number:
+    #             element: "div"
+    #             attributes:
+    #               class: "field-mobile-phone-work"
+    #             search:
+    #               boost: 3
+    #               highlight: true
+
+    #           person_office:
+    #             element: "div"
+    #             attributes:
+    #               class: "field-office-tr"
+    #             search:
+    #               boost: 3
+    #               highlight: true
+              
+    #           person_visiting_address:
+    #             element: "div"
+    #             attributes:
+    #               class: "field-visiting-address"
+    #             search:
+    #               boost: 1
+
+    #           mugshot:
+    #             element: "div"
+    #             attributes:
+    #               class: "field-person-image"
+    #             image:
+    #               target_element: "img"
+    #               target_attributes:
+    #                 class: null
+    #                 id: null
+    #               content_attribute: "src"
+    #               alt_text: "alt"
+    #               title: null
+        
+    #     CONTENT_TYPES_AND_THEMES:
+    #       settings: 
+    #         parse_content_type_from: "url" # url / element (breadcrumb or other element inside body where it is!) / datalayer
+    #         parse_themes_from: null # url / breadcrumb (breadcrumb or element where it is!) / null (if available in e.g. meta tag) / datalayer
+    #         default_content_type: "yhteystieto" # if no match below, use this type
+    #         remove_last_part_from_url_path: true # if true, remove the last section from path which is usually the page itself when parsing theme from url or breadcrumb
+    #         remove_first_part_from_breadcrumb: true # if true, remove the first section from breadcrumb (e.g. "Etusivu") when parsing theme from url or breadcrumb
+    #         remove_last_part_from_breadcrumb: true # if true, remove the last section from breadcrumb which is usually the page itself when parsing theme from url or breadcrumb
+    #         display_fields:
+    #           title: 
+    #             default: "Title not found"
+    #             append_values: false
+    #             index_fields:
+    #               - "person_full_name"
+    #           image_url:
+    #             index_fields:
+    #               - "mugshot"
+    #           url:
+    #             index_fields:
+    #               - "url"
+    #           content_type: 
+    #             index_fields:
+    #               - "content_type"
+    #       tietosivu:
+    #       uutinen: # The words below get this content type
+    #         - "uutinen"
+    #         - "uutiset"
+    #       blogi:
+    #         - "blogi"
+    #         - "blogit"
+    #       yhteystieto: # The words below get this content type
+    #         - "yhteystieto"
+    #         - "yhteystiedot"
+    #         - "henkilo"
+    #         - "toimipaikka"
+    #         - "toimipaikat"
+    #         - "toimipiste"
+    #       tapahtuma: # The words below get this content type
+    #         - "tapahtuma"
+    #         - "tapahtumat"
+    #       palvelu_tai_asiointikanava:
+    #         - "palvelu"
+    #         - "palvelut"
+    #         - "asiointikanava"
+    #         - "service"

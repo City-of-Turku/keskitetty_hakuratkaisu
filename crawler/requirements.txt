@@ -1,0 +1,5 @@
+elasticsearch==7.16.3
+pytest==7.0.1
+pyyaml==6.0
+requests==2.27.1
+scrapy==2.5.1

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="fi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Keskitetty hakuratkaisu</title>
+    <meta name="description" content="Keskitetty hakuratkaisu" />
+
+    <link rel="apple-touch-icon" sizes="180x180" href="%PUBLIC_URL%/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="%PUBLIC_URL%/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="%PUBLIC_URL%/favicon-16x16.png" />
+    <link rel="manifest" href="%PUBLIC_URL%/site.webmanifest" />
+    <link rel="mask-icon" href="%PUBLIC_URL%/safari-pinned-tab.svg" color="#b9921a" />
+    <meta name="msapplication-TileColor" content="#ffc40d" />
+    <meta name="theme-color" content="#ffc40d" />
+  </head>
+  <body style="padding: 16px;">
+    <noscript>Selaimesi pitää tukea JavaScriptia käyttääksesi tätä palvelua.</noscript>
+    <header>
+      <div class="keskitetty-hakuratkaisu" data-mode="widget" data-backend-root="http://localhost:5000"></div>
+    </header>
+    <main>
+      <div style="background: linear-gradient(0deg, #fff, #aaa); height: 128px; margin: 64px -24px;"></div>
+      <div class="keskitetty-hakuratkaisu" data-mode="inline" data-backend-root="http://localhost:5000"></div>
+    </main>
+  </body>
+</html>

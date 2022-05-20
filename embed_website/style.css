@@ -1,0 +1,113 @@
+body {
+  font-family: sans-serif;
+  font-size: 20px;
+  background-color: #fff;
+  color: #333;
+  padding: 0;
+  margin: 0;
+}
+a {
+  color: #333;
+}
+.header {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  gap: 16px;
+  min-height: 128px;
+}
+@media (max-width: 640px) {
+  .header {
+    flex-direction: column;
+    padding: 32px;
+  }
+}
+.header .logo {
+  height: 96px;
+}
+.header .keskitetty-hakuratkaisu {
+  width: 100%;
+  max-width: 250px;
+}
+.header .links a {
+  padding-left: 16px;
+}
+.header .links a:first-child {
+  padding-left: 0;
+}
+.navibar {
+  background-color: #f7701e;
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+  height: 64px;
+}
+.split {
+  display: grid;
+  grid-template-columns: 256px auto;
+  min-height: 100vh;
+}
+@media (max-width: 1200px) {
+  .split {
+    grid-template-columns: 0px 100%;
+  }
+}
+.split .bgimg {
+  opacity: 0.4;
+  background-position: center;
+  background-size: cover;
+  position: -webkit-sticky;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+.split .content {
+  padding: 1em 2em;
+}
+.option {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+pre {
+  background-color: #000;
+  color: #0c0;
+  padding: 1em;
+}
+li {
+  margin-bottom: 0.5em;
+}
+.changelog {
+  font-size: 14px;
+}
+.testaus .header {
+  padding: 32px;
+}
+.testaus .header .keskitetty-hakuratkaisu {
+  max-width: 300px;
+  margin: 0 auto;
+}
+.testaus .hero {
+  position: relative;
+}
+.testaus .hero img {
+  width: 100%;
+}
+.testaus .hero .overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+}
+.testaus .hero h1 {
+  color: #fff;
+  position: absolute;
+  top: 64px;
+  font-family: "helvetica neue", helvetica, arial, roboto, sans-serif;
+  font-size: 96px;
+  font-weight: 100;
+  width: 100%;
+  text-align: center;
+}

@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elasticsearch
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elasticsearch
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+    spec:
+      containers:
+        - name: keha-elastic
+          image: europe-north1-docker.pkg.dev/turku-keskitetty-hakuratkaisu/keha/keha_elasticsearch:latest
+          env:
+            - name: ELASTIC_PASSWORD
+              value: epassu12345
+            - name: ES_JAVA_OPTS
+              value: -Xms256m -Xmx786m
+          ports:
+            - containerPort: 9200
+          resources:
+            requests:
+              cpu: 200m
+              memory: 500Mi
+            limits:
+              cpu: 400m
+              memory: 900Mi
+          volumeMounts:
+            - mountPath: /usr/share/elasticsearch/data
+              name: elasticsearch-volume
+      restartPolicy: Always
+      securityContext:
+        fsGroup: 1000
+      initContainers:
+        - name: create-data-folder
+          image: alpine:latest
+          command: ['mkdir', '-p', '/usr/share/elasticsearch/data']
+          volumeMounts:
+            - mountPath: /usr/share/elasticsearch/data
+              name: elasticsearch-volume
+        - name: change-volume-ownership
+          image: alpine:latest
+          command: ['chown', '-R', '1000:1000', '/usr/share/elasticsearch/data']
+          volumeMounts:
+            - mountPath: /usr/share/elasticsearch/data
+              name: elasticsearch-volume
+      volumes:
+        - name: elasticsearch-volume
+          persistentVolumeClaim:
+            claimName: elasticsearch-volume
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    volume: elasticsearch
+  name: elasticsearch-volume
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+spec:
+  ports:
+    - name: "9200"
+      port: 9200
+      targetPort: 9200
+  selector:
+    app: elasticsearch
+  type: ClusterIP
+
+---

@@ -1,0 +1,598 @@
+backend:
+  analytics: # Contents will be available in UI
+    google_analytics_id: 
+    matomo_analytics_id: 
+
+elasticsearch:
+  hosts:
+    - "localhost:9200"
+    # - "elasticsearch:9200"
+  index_prefix: "turku_demo"
+  index_reader_rolename: "turku_index_reader"
+  index_writer_rolename: "turku_index_writer"
+  languages:
+    - fi
+    - sv
+    - en
+  analyzers:
+    default:
+      tokenizer:
+        "standard"
+      token_filters:
+        - "lowercase"
+    fi:
+      stop_stemmer:
+        tokenizer:
+          "standard"
+        token_filters:
+          - "lowercase"
+          - type: "stop"
+            stopwords: "_finnish_"
+          - type: "stemmer_override"
+            rules_path: "nlp_dictionary_fi.txt"
+          - type: "stemmer"
+            language: "finnish"
+          - type: "synonym"
+            synonyms_path: "synonyms_fi.txt"
+      asiasanat:
+        char_filters:
+          - type: "pattern_replace"
+            pattern: "(Asiasanat:)."
+            replacement: ""
+        tokenizer:
+          "standard"
+        token_filters:
+          - "lowercase"
+    sv:
+      stop_stemmer:
+        tokenizer:
+          "standard"
+        token_filters:
+          - "lowercase"
+          - type: "stop"
+            stopwords: "_swedish_"
+          - type: "stemmer"
+            language: "swedish"
+          - type: "synonym"
+            synonyms_path: "synonyms_sv.txt"
+    en:
+      stop_stemmer:
+        tokenizer:
+          "standard"
+        token_filters:
+          - "lowercase"
+          - type: "stop"
+            stopwords: "_english_"
+          - type: "stemmer"
+            language: "english"
+          - type: "synonym"
+            synonyms_path: "synonyms_en.txt"
+
+  search_settings:
+    fuzziness: 0
+    field_boosts:
+    # Boosts the score of the documents matching to the given field and value by multiplying the original score by the boost value.
+    #   some_descriptive_name:
+    #     field: "field_name" [str]
+    #     values: "the_value_to_be_boosted" [str|list(str)]
+    #     boost: 42.0 [integer|float]
+      uutiset:
+        field: "content_type"
+        values: "uutinen"
+        boost: 0.8
+
+  suggest_settings: # General settings for the suggest query made from the search backend. 
+    suggest1: # Multiple suggestion can be configured if needed - copy this block, rename it and settings
+      completion:
+        field: "suggest" # Field to search for suggestion in
+        skip_duplicates: true
+        fuzzy:
+          fuzziness: 0
+        size: 20 # Amount of suggestions to return
+
+SCRAPY_SETTINGS:
+  GENERAL:
+    DEPTH_LIMIT: 0
+    DOWNLOAD_DELAY: 0.1
+    DOWNLOAD_TIMEOUT: 180
+    LOG_ENABLED: true
+    # LOG_FILE: null
+    LOG_FILE: "turku_demo.log"
+    LOG_FORMAT: '%(asctime)s [%(name)s] %(levelname)s: %(message)s'
+    LOG_LEVEL: 'INFO'
+    LOGSTATS_INTERVAL: 60
+    ROBOTSTXT_OBEY: false
+
+  SPIDERS:
+    TurkuGenericSpider:
+      BOT_NAME: "atrsoft"
+      ALLOWED_DOMAINS:
+        - www.turku.fi
+      START_URLS:
+        - "https://www.turku.fi"
+      LINK_EXTRACTOR_RULES:
+        allow:
+        deny:
+          - "/includes/"
+          - "/misc/"
+          - "/modules/"
+          - "/profiles/"
+          - "/scripts/"
+          - "/themes/"
+          - "/CHANGELOG.txt"
+          - "/cron.php"
+          - "/INSTALL.mysql.txt"
+          - "/INSTALL.pgsql.txt"
+          - "/INSTALL.sqlite.txt"
+          - "/install.php"
+          - "/INSTALL.txt"
+          - "/LICENSE.txt"
+          - "/MAINTAINERS.txt"
+          - "/update.php"
+          - "/UPGRADE.txt"
+          - "/xmlrpc.php"
+          - "/admin/"
+          - "/comment/reply/"
+          - "/filter/tips/"
+          - "/node/add/"
+          - "/search/"
+          - "/en/search/"
+          - "/sv/search/"
+          - "/user/register/"
+          - "/user/password/"
+          - "/user/login/"
+          - "/user/logout/"
+          - "/?q=admin/"
+          - "/?q=comment/reply/"
+          - "/?q=filter/tips/"
+          - "/?q=node/add/"
+          - "/?q=search/"
+          - "/?q=user/password/"
+          - "/?q=user/register/"
+          - "/?q=user/login/"
+          - "/?q=user/logout/"
+          - "/sites/default/files/"
+          - "/rss?"
+          - "/paatoksenteko/kaupunginvaltuusto/aloite"
+          - "/search"
+          - "/henkilo/"
+
+      CUSTOM_SETTINGS:
+        CRAWL_LINKS_ONLY:
+          # The pages which have an url containing one of these paths are crawled and links are extracted without indexing the contents.
+          # Suitable especially for directory pages or link lists. Value can be empty or null.
+          # str | [str] | null
+          - "/aggregator"
+          - "/search"
+          - "/target-audience/"
+
+        REPLACE_CHARACTERS:
+          # Characters to be replaced with another one within the scraped content. Values set as "key": "value" -pairs. Can be set as empty or null.
+          # "the_string_or_character_to_be_replaced": "the_string_to_replace_with_or_an_empty_string_if_removed"
+          "\xa0": " "
+
+        ITEM_PIPELINES:
+          # generic.generic.pipelines.NLPPipeline: 300
+          generic.generic.pipelines.ElasticsearchPipeline: 500
+        
+        NLP_SETTINGS:
+          # Address for the NLP API if NLPPipeline is used ('http://host.docker.internal:15000' for default) [string | null]
+          nlp_api_address: "http://host.docker.internal:15000"
+          # File path for the dictionary file ('/usr/share/elasticsearch/data/nlp_dictionary_fi.txt' for default) [string | null]
+          nlp_dictionary_path: "/usr/share/elasticsearch/config/nlp_dictionary_fi.txt"
+
+        SCRAPER_SETTINGS:
+          lang:
+            "html"
+
+          head:
+            content_to_scrape:
+              # title:
+              #   element: "title"
+              #   indexing:
+              #     type: "text"
+              og:title:
+                element: "meta"
+                attribute: "og:title"
+                attribute-key: "property"
+                attribute-value: "content"
+                indexing:
+                  type: "text"
+                  analyzer:
+                    fi: "stop_stemmer"
+                    sv: "stop_stemmer"
+                    en: "stop_stemmer"
+                search:
+                  boost: 5
+                  highlight: true
+
+              dcterms.title:
+                element: "meta"
+                attribute: "dcterms.title"
+                attribute-key: "property"
+                attribute-value: "content"
+                indexing:
+                  type: "text"
+                  analyzer:
+                    fi: "stop_stemmer"
+                    sv: "stop_stemmer"
+                    en: "stop_stemmer"
+                search:
+                  highlight: true
+
+              og:type:
+                element: "meta"
+                attribute: "og:type"
+                attribute-key: "property"
+                attribute-value: "content"
+
+              og:description:
+                element: "meta"
+                attribute: "og:description"
+                attribute-key: "property"
+                attribute-value: "content"
+                indexing:
+                  type: "text"
+                  analyzer:
+                    fi: "stop_stemmer"
+                    sv: "stop_stemmer"
+                    en: "stop_stemmer"
+                search:
+                  null
+                  
+              keywords:
+                element: "meta"
+                attribute: "keywords"
+                attribute-key: "name"
+                attribute-value: "content"
+                search:
+                  boost: 3
+
+          body:
+            element: "div"
+            class: "l-main"
+            id: null
+
+            exclude_rules:
+              valikko:
+                element: "aside"
+                class: "l-region"
+                id: null
+
+            content_to_scrape:
+              header1:
+                element: "h1"
+                attributes:
+                  id: null
+                  class: null
+                indexing:
+                  type: "text"
+                  analyzer: 
+                    fi: "stop_stemmer"
+                    sv: "stop_stemmer"
+                    en: "stop_stemmer"
+                search:
+                  boost: 5
+                  highlight: true
+
+              header2:
+                element: "h2"
+                indexing:
+                  type: "text"
+                  analyzer: 
+                    fi: "stop_stemmer"
+                    sv: "stop_stemmer"
+                    en: "stop_stemmer"
+                search:
+                  boost: 3
+                  highlight: true
+
+              header3:
+                element: "h3"
+                attributes":
+                  id: null
+                indexing:
+                  type: "text"
+                  analyzer:
+                    fi: "stop_stemmer"
+                    sv: "stop_stemmer"
+                    en: "stop_stemmer"
+                search:
+                  boost: 2
+                  highlight: true
+
+              text: 
+                element: "p"
+                attributes:
+                  class: null
+                indexing:
+                  type: "text"
+                  analyzer: 
+                    fi: "stop_stemmer"
+                    sv: "stop_stemmer"
+                    en: "stop_stemmer"
+                search:
+                  highlight:
+                    no_match_size: 100
+
+              asiasanat:
+                element: "div"
+                attributes:
+                  class: "field--name-field-keywords"
+                indexing:
+                  type: "text"
+                  analyzer: 
+                    fi: "asiasanat"
+                search:
+                  boost: 3
+                  highlight: false
+
+              pvm:
+                element: "div"
+                attributes:
+                  class: "field--name-post-date"
+                indexing:
+                  type: "date"
+                  format: "dd.MM.yyyy"
+                search:
+                  false
+              
+              breadcrumb:
+                element: "ul"
+                attributes:
+                  class: "breadcrumb"
+                search:
+
+              content_image:
+                element: "div"
+                attributes:
+                  class: "field__items"
+                indexing:
+                  type: "text"
+                  analyzer: "default"
+                image:
+                  target_element: "img"
+                  target_attributes:
+                    class: null
+                    id: null
+                  content_attribute: "src"
+                  alt_text: "alt"
+                  title: "title"
+
+        CONTENT_TYPES_AND_THEMES:
+          settings: 
+            parse_content_type_from: "url" # url / element (breadcrumb or other element inside body where it is!) / datalayer
+            parse_themes_from: "breadcrumb" # url / breadcrumb (breadcrumb or element where it is!) / null (if available in e.g. meta tag) / datalayer
+            default_content_type: "tietosivu" # if no match below, use this type
+            remove_last_part_from_url_path: true # if true, remove the last section from path which is usually the page itself when parsing theme from url or breadcrumb
+            remove_first_part_from_breadcrumb: true # if true, remove the first section from breadcrumb (e.g. "Etusivu") when parsing theme from url or breadcrumb
+            remove_last_part_from_breadcrumb: true # if true, remove the last section from breadcrumb which is usually the page itself when parsing theme from url or breadcrumb
+            display_fields:
+              title: 
+                default: ""
+                append_values: true
+                suggest: false
+                index_fields:
+                  - "og:title"
+                  - "dcterms.title"
+              text:
+                append_values: false
+                suggest: false
+                index_fields:
+                  - "full_content"
+                  - "og:description"
+              publish_date:
+                append_values: false
+                index_fields:
+              modify_date:
+                append_values: true
+                index_fields:
+              writer:
+                default:
+                suggest: false
+                index_fields:
+              location:
+                suggest: false
+                index_fields:
+              date: 
+                suggest: false
+                index_fields:
+                  - "pvm"
+              time:
+                index_fields:
+              url:
+                index_fields: 
+                  - "url"             
+              image_url:
+                index_fields:
+                - "content_image"
+              keywords:
+                suggest: false
+                index_fields:
+                  - "keywords"
+              content_type: 
+                index_fields:
+                  - "content_type"
+              themes:             
+                suggest: false
+                index_fields:
+                  - "themes"
+          tietosivu:
+          uutinen: # The words below get this content type
+            - "uutinen"
+            - "uutiset"
+          blogi:
+            - "blogi"
+            - "blogit"
+          yhteystieto: # The words below get this content type
+            - "yhteystieto"
+            - "yhteystiedot"
+            - "henkilo"
+            - "toimipaikka"
+            - "toimipiste"
+          tapahtuma: # The words below get this content type
+            - "tapahtuma"
+            - "tapahtumat"
+          palvelu_tai_asiointikanava:
+            - "palvelu"
+            - "palvelut"
+            - "asiointikanava"
+            - "service"
+
+    TurkuPersonSpider:
+      BOT_NAME: "atrsoft"
+      ALLOWED_DOMAINS:
+        - www.turku.fi
+      START_URLS:
+        - "https://www.turku.fi/search"
+      LINK_EXTRACTOR_RULES:
+        allow:
+          - "/search/type/%22person%22"
+          - "/henkilo/"
+        deny:
+
+      CUSTOM_SETTINGS:
+        CRAWL_LINKS_ONLY:
+          # The pages which have an url containing one of these paths are crawled and links are extracted without indexing the contents.
+          # Suitable especially for directory pages or link lists. Value can be empty or null.
+          # str | [str] | null
+          - "/search"
+
+        REPLACE_CHARACTERS:
+          # Characters to be replaced with another one within the scraped content. Values set as "key": "value" -pairs. Can be set as empty or null.
+          # "the_string_or_character_to_be_replaced": "the_string_to_replace_with_or_an_empty_string_if_removed"
+          "\xa0": " "
+          "Matkapuhelin: ": ""
+          # "Yksikk\xf6:\xa0": ""
+
+        ITEM_PIPELINES:
+          generic.generic.pipelines.ElasticsearchPipeline: 500
+
+        SCRAPER_SETTINGS:
+          lang:
+            "html"
+
+          head:
+            content_to_scrape:
+              person:title:
+                element: "meta"
+                attribute: "og:title"
+                attribute-key: "property"
+                attribute-value: "content"
+                search:
+                  highlight: true
+
+          body:
+            element: "div"
+            class: "person"
+            id: null
+
+            exclude_rules:
+              labels:
+                element: "div"
+                class: "field__label"
+              separator_symbols:
+                element: "span"
+                class: "hierarchical-select-item-separator"
+
+            content_to_scrape:
+              full_name:
+                element: "h1"
+                attributes:
+                  class: "person__name"
+                search:
+                  boost: 10
+                  highlight: true
+
+              position:
+                element: "div"
+                attributes:
+                  class: "person__title"
+                search:
+                  boost: 3
+                  highlight: true
+
+              email_address:
+                element: "div"
+                attributes:
+                  class: "person__email"
+                search:
+                  boost: 3
+                  highlight: true
+
+              phone_number:
+                element: "div"
+                attributes:
+                  class: "field--name-field-mobile-phone-work"
+                search:
+                  boost: 3
+                  highlight: true
+
+              office:
+                element: "div"
+                attributes:
+                  class: "field--name-field-office-tr"
+                search:
+                  boost: 3
+                  highlight: true
+
+              mugshot:
+                element: "div"
+                attributes:
+                  class: "person__image"
+                indexing:
+                  type: "text"
+                  analyzer: "default"
+                image:
+                  target_element: "img"
+                  target_attributes:
+                    class: null
+                    id: null
+                  content_attribute: "src"
+                  alt_text: "alt"
+                  title: "title"
+        
+        CONTENT_TYPES_AND_THEMES:
+          settings: 
+            parse_content_type_from: "url" # url / element (breadcrumb or other element inside body where it is!) / datalayer
+            parse_themes_from: null # url / breadcrumb (breadcrumb or element where it is!) / null (if available in e.g. meta tag) / datalayer
+            default_content_type: "yhteystieto" # if no match below, use this type
+            remove_last_part_from_url_path: true # if true, remove the last section from path which is usually the page itself when parsing theme from url or breadcrumb
+            remove_first_part_from_breadcrumb: true # if true, remove the first section from breadcrumb (e.g. "Etusivu") when parsing theme from url or breadcrumb
+            remove_last_part_from_breadcrumb: true # if true, remove the last section from breadcrumb which is usually the page itself when parsing theme from url or breadcrumb
+            display_fields:
+              title: 
+                default: "Title not found"
+                append_values: false
+                index_fields:
+                  - "person:title"
+                  - "full_name"
+              image_url:
+                index_fields:
+                  - "mugshot"
+              url:
+                index_fields:
+                  - "url"
+              content_type: 
+                index_fields:
+                  - "content_type"
+          uutinen: # The words below get this content type
+            - "uutinen"
+            - "uutiset"
+          blogi:
+            - "blogi"
+            - "blogit"
+          yhteystieto: # The words below get this content type
+            - "yhteystieto"
+            - "yhteystiedot"
+            - "henkilo"
+            - "toimipaikka"
+            - "toimipiste"
+          tapahtuma: # The words below get this content type
+            - "tapahtuma"
+            - "tapahtumat"
+          palvelu_tai_asiointikanava:
+            - "palvelu"
+            - "palvelut"
+            - "asiointikanava"
+            - "service"

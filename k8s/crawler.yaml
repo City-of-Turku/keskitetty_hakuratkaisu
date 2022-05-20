@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: crawler
+spec:
+  schedule: "0 2 * * 3" # at 02:00 on wednesdays
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: keha-crawler
+              image: europe-north1-docker.pkg.dev/turku-keskitetty-hakuratkaisu/keha/scrapy
+              env:
+                - name: elastic_write_username
+                  value: crawler_user_turku
+                - name: elastic_write_password
+                  value: crawler12345
+              resources:
+                requests:
+                  cpu: 200m
+                  memory: 5500Mi
+                limits:
+                  cpu: 500m
+                  memory: 5500Mi
+          restartPolicy: Never

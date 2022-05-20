@@ -1,0 +1,37 @@
+{
+  "name": "hakudemo-embed-less-watcher",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "less": "lessc --autoprefix style.less style.css",
+    "watch": "npm-watch less"
+  },
+  "watch": {
+    "less": {
+      "patterns": [
+        "."
+      ],
+      "extensions": "less"
+    }
+  },
+  "author": "",
+  "license": "Unlicensed",
+  "dependencies": {
+    "less": "4.1.2",
+    "less-plugin-autoprefix": "2.0.0",
+    "less-watch-compiler": "1.16.3",
+    "npm-watch": "0.11.0"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}

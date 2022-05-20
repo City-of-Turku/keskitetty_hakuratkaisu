@@ -1,0 +1,102 @@
+version: "2"
+
+networks:
+  elastic:
+    driver: bridge
+
+volumes:
+  elasticsearch:
+    driver: local
+
+services:
+  elasticsearch:
+    container_name: keha-elastic
+    build:
+      context: elasticsearch
+    image: keha_elasticsearch:latest
+    restart: unless-stopped
+    environment:
+      - "ES_JAVA_OPTS=-Xms1024m -Xmx1024m"
+      - "ELASTIC_PASSWORD=epassu12345"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - elasticsearch:/usr/share/elasticsearch/data
+    ports:
+      - 9200:9200
+    networks:
+      - elastic
+
+  search_backend:
+    container_name: keha-backend
+    build:
+      context: .
+      dockerfile: ./search_backend/Dockerfile 
+    image: search_backend:latest
+    restart: unless-stopped
+    depends_on:
+        - "elasticsearch"
+    networks:
+      - elastic
+    ports:
+      - 5000:80
+    command: sh -c "/wait && ./start-backend.sh"
+    environment:
+      - WAIT_HOSTS=elasticsearch:9200
+      - WAIT_HOSTS_TIMEOUT=500
+      - WAIT_SLEEP_INTERVAL=30
+      - WAIT_HOSTS_CONNECT_TIMEOUT=30
+      - elastic_admin_username=elastic
+      - elastic_admin_password=epassu12345
+      - elastic_write_username=crawler_user_turku
+      - elastic_write_password=crawler12345
+      - elastic_read_username=backend_user_turku
+      - elastic_read_password=backend12345
+
+  search_ui:
+    container_name: keha-ui
+    build:
+      context: ./search_ui
+    image: search_ui:latest
+    restart: unless-stopped
+    depends_on:
+      - search_backend
+    networks:
+      - elastic
+    ports:
+      - 5005:80
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  embed_website:
+    container_name: keha-embed
+    build:
+      context: ./embed_website
+    restart: unless-stopped
+    depends_on:
+      - search_ui
+    networks:
+      - elastic
+    ports:
+      - 8899:80
+
+  kibana:
+    container_name: keha-kibana
+    image: docker.elastic.co/kibana/kibana:7.16.3
+    restart: unless-stopped
+    depends_on:
+      - "elasticsearch"
+    ports:
+      - 5601:5601
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      ELASTICSEARCH_USERNAME: elastic
+      ELASTICSEARCH_PASSWORD: epassu12345
+    networks:
+      - elastic
